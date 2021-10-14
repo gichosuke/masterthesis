@@ -1,0 +1,42 @@
+---
+title: "Progress So far"
+author: "Kosuke Arai"
+date: "10/8/2021"
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Price as IV
+
+AKS and Fujiwara, Shirota and Arai indicates we can use price as an IV for stock.
+It seems not for my sample period.
+i.e. Weak IV test indicates price is an weak instrument. 
+Different from AKS but same with FSA, I set the deprecation rate 0.18, life length infinity
+so that the robot stock of industry i in time t,$K_{i,t}=R_{i,t}+(1-0.18)K_{i,t-1}$
+
+
+## Weak IV test
+
+Controlled with \it{Global Control} and \it{ICT Stock},  
+
+|  Period  |   Weight  | F-stat
+| :-: | :-: | :-:|
+| 1978-2018 | 1978-1980 | 29.59
+| 1994-2018 | 1990-1993 | 1.915
+| 1994-2018 | 1978-1980 | 3.816
+| 1978-1989 | 1978-1980 | 30.58
+
+
+$\rightarrow$ The main driver of the relationship between price and stock is 1980's.
+ 
+ - _Global Control_  is import value plus export value  
+ - _ICT stock_  is ICT stock measured by the data JIP.  
+ 
+## Robot Stocks
+
+```{r,echo=FALSE}
+head(dat)
+```
