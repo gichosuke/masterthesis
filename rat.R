@@ -77,3 +77,14 @@ pim2 <- function(data=dat,t=12,d=0,st=1991,ed=1993,real=F){
     distinct(industry,year,stock)
   return(rbs)
 }
+
+exrat <- function(data=dat,price=exdat,st=1978,ed=1980){
+  share <- data %>% filter(dplyr::between(year,st,ed)&!is.na(sales)) %>% 
+    group_by(industry,purpose) %>% mutate(weight=sum(sales)) %>% slice_head() %>% ungroup(purpose) %>% 
+    mutate(weight=weight/sum(weight)) %>% ungroup() %>% select(c("industry","purpose","weight"))
+  exdat <- price %>% transmute(purpose=application,year=year,price=price)
+  exdat$price[is.na(exdat$price)] <- 1
+  exrat <- left_join(share,exdat,by="purpose") %>% group_by(industry,year) %>% 
+    mutate(expin=prod(price^weight)) %>% ungroup()
+  return(exrat)
+}
