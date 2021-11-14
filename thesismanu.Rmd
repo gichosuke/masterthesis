@@ -2,70 +2,442 @@
 title: "Progress So far"
 author: "Kosuke Arai"
 date: "10/8/2021"
+header-includes:
+   - \usepackage{multirow,slashbox,color}
 output: beamer_presentation
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE,message = F,warning = F,comment = "",eval=T)
 source("rat.R")
-dat <- read_csv("masterdata.csv") %>% rename(sales=investment)
+dat <- read_csv("maindata3.csv")%>% filter(industry!="Non-manufacturing")
+dat2 <- read_csv("masterdata.csv") %>% filter(industry!="Non-manufacturing") %>% rename(sales=investment)
+stlis <- pim1(st=1978,ed=2018,real=T)
+stlis2 <- pim1(t=45,d=0.1,st=1978,ed=2018,real=T)
 ```
 
-## Price as IV
+# Motivation
 
-AKS and Fujiwara, Shirota and Arai indicates we can use price as an IV for stock.
-It seems not for my sample period.
-i.e. Weak IV test indicates price is an weak instrument. 
-Different from AKS but same with FSA, I set the deprecation rate 0.18, life length infinity
-so that the robot stock of industry i in time t,$K_{i,t}=R_{i,t}+(1-0.18)K_{i,t-1}$
+\begin{itemize}
+ \item Since the Industrial Revolution, from spinning machines to artificial intelligence, automation has affected firms and workers.
+    \begin{itemize}
+      \item Industrial Revolution made it worthwhile to bring workers under one roof (Mokyr (2001)).
+      \item Around 47 percent of total US employment is expected to be automated relatively soon (Frey and Obsborne(2017)).
+    \end{itemize}
+\end{itemize}
 
+I study the impact of industrial robots, such as assembly machines or packaging machines.
 
-## Weak IV test
+# Robot purchases by destination industry
 
-Controlled with \it{Global Control} and \it{ICT Stock},  
+```{r}
+dat  %>% filter(industry!="Non-manufacturing") %>% ungroup() %>% group_by(industry,year) %>% mutate(sales=sum(sales,na.rm = T)) %>% slice_head() %>% 
+  ggplot()+
+  aes(year,log(sales),color=industry)+
+  geom_line()+
+  ylab(label = "log( Sales(million JPY) )")+
+  scale_x_continuous(breaks = seq(1978,2018,10))+
+  theme_bw()
+```
 
-|  Period  |   Weight  | F-stat
-| :-: | :-: | :-:|
-| 1978-2018 | 1978-1980 | 29.59
-| 1994-2018 | 1990-1993 | 1.915
-| 1994-2018 | 1978-1980 | 3.816
-| 1978-1989 | 1980-1989 | 25.35
+# Sum of robot purchases 
 
-
-$\rightarrow$ The main driver of the relationship between price and stock is 1980's.
+```{r}
+dat  %>% filter(industry!="Non-manufacturing") %>% ungroup() %>% group_by(year) %>% mutate(sales=sum(sales,na.rm = T)) %>% slice_head() %>% 
+  ggplot()+
+  aes(year,log(sales))+
+  geom_line()+
+  ylab(label = "log( Sales(million JPY) )")+
+  scale_x_continuous(breaks = seq(1978,2018,10))+
+  theme_bw()
+```
  
- - _Global Control_  is import value plus export value  
- - _ICT stock_  is ICT stock measured by the data JIP.  
- 
+# Robot stocks by industry
 
-## Price as IV
+```{r}
+ggplot(stlis)+
+  aes(year,log(stock),color=industry)+
+  geom_line()+
+  scale_x_continuous(breaks = seq(1978,2018,10))+
+  theme_bw()
+```
 
-On the other hand, AKS set the deprecation rate 0 and life length 12 years (same with International Federation of Robotics,IFR)  
-so that the robot stock of industry i in time t;
+# Sum of robot stocks
+
+```{r}
+ggplot(stlis %>% group_by(year) %>% mutate(stock=sum(stock)))+
+  aes(year,log(stock))+
+  geom_line()+
+  scale_x_continuous(breaks = seq(1978,2018,10))+
+  theme_bw()+
+  geom_vline(xintercept = c(1978,1991),linetype="dashed")+
+  annotate("rect",xmin=1994,xmax = 2018,ymin = 6,ymax = 12,alpha=0.2)
+```
+
+# Uniqueness
+
+\begin{itemize}
+ \item Detailed data of the shipments of industrial robots in Japan  
+    \begin{itemize}
+      \item Adachi et al. and Fujiwara et al. also study the impact of robots using this data. 
+    \end{itemize}
+    \item Focus on Firms.
+    \begin{itemize}
+      \item They above mainly study the impact on employments or wages. 
+    \end{itemize}
+\end{itemize}
+
+How does automation changes manufacturing firms?
+
+# Model - Hopenhayn and Rogerson (1993)
+
+\begin{itemize}
+\item Output and input prices $p_t$ and $w_t=1$ taken as given.
+\item Productivity $s_t$ is stochastic and labor $n_t$ is the only input.
+\begin{itemize}
+\item The state of the economy is described by the distribution of \\$s_t$ and $n_t$, $\mu (s_t,n_t).$
+\end{itemize}
+
+\item A tax $\tau$ on job destruction.
+\begin{itemize}
+\item $g(n_t,n_{t-1})=\tau\ \cdot max[0,n_{t-1}-n_t]$
+\end{itemize}
+\end{itemize}
+
+# Entry and Exit
+
+\begin{itemize}
+ \item At the start of each period, existing firms decide whether to remain in the market.
+ \begin{itemize}
+ \item If remain, they incur the fixed cost $p_t\cdot c_f$ and observe the current value of productivity, $s_t$.
+ \item if exit, they pay $g(0,n_{t-1})$
+ \end{itemize}
+ \item At the start of each period, potential entrants (continuum) make decisions whether to enter.
+ \begin{itemize}
+ \item If enter, incur entry cost $p_t\cdot c_e$ and draw productivity $s_t$ from $v(s)$.
+ \end{itemize}
+\end{itemize}
+
+
+# Incumbents' problem
+
+- Consider stationary equilibrium with constant price $p$.  
+- Let $W(s,n,p)$ denote value function for firms that had employment $n$ last period, that has decided to operate and drawn productivity $s$.  
+
+- Bellman equation 
+\begin{eqnarray*}
+W(s,n;p)&=&\underset{n'\geq0}{max}\{ pf(n',s)-n'-pc_f-g(n',n) \\
+& \qquad &+\beta\cdot max [E_sW(s',n';p),-g(0,n')] \}
+\end{eqnarray*}
+
+- Let $N(s,n,p)$ denote optimal employment policy and $X(s,n,p)\in\{0,1\}$ denote optimal exit policy ($X=1$ is exit.)
+- Adjustment cost $r(s,n;p)$ is defined as;
+\begin{eqnarray*}
+r(s,n;p)&=&[1-X(s,n;p)]\int g(N(s',n;p),n)dF(s,s')\\
+&\qquad& + X(s,n;p)\ \cdot g(0,n)
+\end{eqnarray*}
+
+# Entrants' problem
+
+- Net value of entry
+
 \[
-K_{i,t}=\sum_{\tau = t-11}^{t} R_{i,\tau}
+W^e(p)=\int W(s,0;p)dv(s)-pc_e + pc_f
 \]
 
+- Let $m>0$ denote the mass of entrants, free entry condition implies;
 
-## Weak IV test
+\[
+W^e(p)=0
+\]
 
-Controlled with \it{Global Control} and \it{ICT Stock},  
+ - In Hopenhayn and Rogerson (1993), $W^e(p)$ is defined as $\int W(s,0;p)dv(s)-pc_e$. However, the footnote says entrants do not pay $pc_f$.
 
-|  Period  |   Weight  | F-stat
-| :-: | :-: | :-:|
-| 1978-2018 | 1978-1980 | 23.33
-| 1994-2018 | 1990-1993 | 0.264
-| 1994-2018 | 1978-1980 | 2.96
-| 1978-1989 | 1980-1989 | 33.21
+# Aggregation
 
+- Aggregate output
 
-$\rightarrow$ The main driver of the relationship between price and stock is 1980's.
+\[
+Y=\int [f(N(s,n;p),s)-c_f]d\mu(s,n)+M\int f(N(s,0;p),s)dv(s)
+\]
+
+- Labor demand
+
+\[
+L^d=\int N(s,n;p)d\mu(s,n)+M\int N(s,0;p)dv(s)
+\]
+
+ - Adjustment cost
+
+\[
+R=\int r(s,n;p)d\mu(s,n)
+\]
+
+ - Profit
  
- - _Global Control_  is import value plus export value  
- - _ICT stock_  is ICT stock measured by the data JIP.  
- 
-## Robot Stocks
+ \[
+\Pi=pY-L^d-R-Mpc_e
+\]
 
-```{r,echo=FALSE}
-head(dat)
+# Consumers' problem
+
+ - Representative consumer
+ 
+ \[
+\underset{N}{max}\ u(c)-aN \qquad s.t.\ pc\leq N+\Pi +R
+\]
+
+- Let $L^s(p,\Pi+R)$ denote the optimal labor supply, $N^*$.
+
+# Stationary equilibrium conditions
+ - $L^d(\mu^*,M^*,p^*)=L^s(p^*,\Pi^*+R^*)$
+ - $T(\mu^*,M^*,p^*)=\mu^*$ where $T$ is the transition operator of $\mu$.
+ - $W^e(p^*)=0$
+
+# Specification
+
+Mainly following Hopenhayn and Rogerson (1993) and Martin Floden (1997).
+
+\begin{itemize}
+\item$f(n,s)=sn^{0.64}$  
+\item$g(n_t,n_{t-1})=0.2\times max[0,n_t-n_{t-1}]$  
+\item$ln(s_t)=0.078+0.93\times ln(s_{t-1})+\epsilon_t \qquad \epsilon_t \sim N(0,0.0371) $  
+\item Consumer's objective function $u(c)-aN=ln(c)-0.6N$  
+\item$v(s)$ is uniform distribution on $[\underline{s},\underline{s}+0.65(\overline{s}-\underline{s})]$ where $[\underline{s},\overline{s}]$ is the span for incumbent firms.  
+\item$c_f=12$
+\item$c_e$ is determined so that $W^e(p)=0$ at $p=1$, as a result, 5.73.  
+\end{itemize}
+
+
+# Numerical Examples
+
+VFI toolkit, made by Robert Kirkby, provides us the codes to run HR model.  
+I adjusted them so that I can include $c_e$ as a parameter.
+
+I assume automation heighten productivity and entry cost.
+
+# Numerical Examples
+
+\[
+ln(s_t)=a+0.93\times ln(s_{t-1})+\epsilon_t 
+\]
+
+\begin{table}[h]
+\caption{Average Firm Size}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\backslashbox{a}{$c_e$} & 5.73 & 6 & 15 \\
+ \hline
+0.078 & \textcolor{red}{23.81} & 24.56 & 69.96\\
+\hline
+0.1 & 14.35 & 15.19 & 42.21\\
+\hline
+ \end{tabular}
+\end{table}
+
+\begin{table}
+\caption{Mass of Entrants}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\backslashbox{a}{$c_e$} & 5.73 & 6 & 15 \\
+ \hline
+0.078 & \textcolor{red}{0.0048} & 0.0047 & 0.0011\\
+\hline
+0.1 & 0.0081 & 0.0076 &0.0018\\
+\hline
+ \end{tabular}
+ \end{table}
+
+# Emprical Analysis
+
+I adopt two main data
+
+\begin{itemize}
+\item Robot Shipments
+\begin{itemize}
+\item Made by Japan Robot Association (JRA). From 1978 to 2018.
+\end{itemize}
+\item Firms' numbers and their employment.
+\begin {itemize}
+\item Made by Prime Minister's office for 1978.\\
+Made by Ministry of Economy, Trade and Industry from 1994 to 2018.
+\end{itemize}
+\end{itemize}
+
+# JRA Data
+
+\begin{table}[hbtp]
+\begin{tabular}{|c|ccc|}
+\hline
+ & Assembling & Welding & Painting \\
+\hline
+ & 10 & 15 & - \\
+Transport Machines & 140 & 200 & 10 \\
+ \hline
+ & 5 & 8 & 4 \\
+Electric Machines & 20 & 40 & 30 \\
+\hline
+\end{tabular}
+\end{table}
+
+# Aggregate robot purchases
+
+Following Adachi et al.(2020), I aggregate robot purchases as follows;
+\[
+R_{it}=\prod_a (R_{ait})^{\iota_{ai}} 
+\]
+where $R$ denotes the quantity of robots, $i$ indicates industry, $t$ indicates year, and $a$ indicates robot application.  
+\smallskip
+The aggregation weight $\iota_{ai}$ is constant over time and calculated as
+\[
+\iota_{ai}=\frac{v^A_{ai}}{\sum_a v^A_{ai}}
+\]
+where $v^A_{ai}$ is the average sales value of application $a$ to industry $i$ from 1978 to 2018.
+
+# What is the $quantity\ of\ robots$?
+
+1. Robot amount purchased in year $t$  
+2. Robot amount purchased in year $t$   
+$\qquad +$ (depreciated) past purchases  
+3. Robot sales value$_{a,i,t}$ / Average robot prices$_{a,t}$  
+4. Robot sales value$_{a,i,t}$ / Average robot prices$_{a,t}$  
+$\qquad +$ (depreciated) Sales$_{a,i,t-1}$ / Average prices$_{a,t-1}\ + \cdots$  
+
+\medskip
+If I choose 1 or 3, I must sum up $R_{it}$ to make robot stocks,  
+otherwise $R_{it}$ itself is the robot stock.  
+I mainly use 3.  
+
+# Robot price indicator
+
+Following Adachi et al.(2020), I calculate robot price indicator as follows;
+\[
+r_{it}=\prod_a (r_{at})^{\iota_{ai}} 
+\]
+where $r_{at}$ is the average unit price for each application and year and  
+$\iota_{ai}$ is the average expenditure share on application $a$ in industry $i$.
+
+# Life length and depriciation rate
+
+Adachi et al.(2020) and IFR set the life length of robots equals to 12 and depreciation rate equals to 0.  
+Graetz and Michaels (2018) and Arai, Fujiwara and Shirota(2021) set life length infinity and depreciation rate 0.1.  
+
+I adopt both method.  
+Call stocks made in the first way "IWM stock" and  
+ones made in the second way "PIM stock".  
+\begin{eqnarray*}
+IWM\ stock_{it} &=& \sum_{\tau\in[t-11,t]} R_{it} \\
+PIM\ stock_{it} &=& \sum_{\tau\in[0,t]} (1-0.1)^{t-\tau} R_{it}
+\end{eqnarray*}
+
+# Industrial Analysis
+
+Similar with Acemogle and Restrepo(2020), I do cross sectional analysis on the changes of some values between before and after industrial robots adopted, 1978 to 2018.  
+
+```{r,out.height="75%"}
+stlis %>% group_by(year) %>% mutate(istock=sum(stock)) %>% ungroup() %>% 
+ggplot()+
+  geom_line(aes(year,log(istock)),alpha=0.4,size=3)+
+  geom_line(data=(stlis2 %>% group_by(year) %>% mutate(pstock=sum(stock)) %>% ungroup()),
+            aes(year,log(pstock)),alpha=0.4,size=3,color="red")+
+  labs(title = "Gray: ln(IWM stock)                 Red: ln(PIM stock)")+
+  ylab(label =element_blank())+
+  geom_vline(xintercept = c(1978,1991),linetype="dashed")+
+  theme_bw()
 ```
+
+
+# Cross sectional analysis
+
+\begin{table}[htpb]
+\begin{tabular}{|c|cc|}
+\hline
+\multirow{2}{*}{Explanation variables}  & \multicolumn{2}{c|}{Dependent variables}  \\
+\cline{2-3}
+& $\Delta ln(\frac{L}{F})$ & $\Delta ln(F)$\\
+\hline
+\multirow{2}{*}{$\Delta ln(\frac{PIM\ stock}{F})$} & $0.17^{***}$ & $-0.33^{***}$\\
+ & (0.050) & (0.075) \\
+ \hline
+\multirow{2}{*}{$\Delta(\frac{IWM\ stock}{F})$} &$0.16^{***}$ & $-0.31^{***}$\\
+ &(0.049) & (0.074) \\
+ \hline
+\multirow{2}{*}{$\Delta ln(\frac{PIM\ stock}{L})$} & $0.14^{*}$ & $-0.34^{***}$ \\
+ &(0.069) & (0.10)\\
+ \hline
+\multirow{2}{*}{$\Delta ln(\frac{IWM\ stock}{L})$} & $0.14^{*}$ & $-0.32^{***}$\\
+ &(0.066) & (0.10)\\
+ \hline
+\multirow{2}{*}{$\Delta ln(PIM\ stock)$} & $0.17^{*}$ & $-0.26^{*}$ \\
+ &(0.080) & (0.14)\\
+ \hline
+\multirow{2}{*}{$\Delta ln(IWM\ stock)$} & $0.16^{*}$ & $-0.25^{*}$\\
+ &(0.077) & (0.13)\\
+ \hline
+ \hline
+ Obs. & 16 & 16\\
+ \hline
+ \end{tabular}\\
+Note: $^{***}p<0.01,\ ^{**}p<0.05,\ ^{*}p<0.1$.\\
+F denotes the numbers of firms, L denotes the employment.
+\end{table}
+
+# Cross sectional analysis
+
+Changing $\iota_{ai}$ from "the average sales value from 1978 to 2018"   
+to "the average value from 1978 to 1991" does not affect the result so much.
+
+\begin{table}[htpb]
+\begin{tabular}{|c|cc|}
+\hline
+\multirow{2}{*}{Explanation variables}  & \multicolumn{2}{c|}{Dependent variables}  \\
+\cline{2-3}
+& $\Delta ln(\frac{L}{F})$ & $\Delta ln(F)$\\
+\hline
+\multirow{2}{*}{$\Delta ln(\frac{PIM\ stock}{F})$} & $0.16^{***}$ & $-0.32^{***}$\\
+ & (0.047) & (0.068) \\
+ \hline
+\multirow{2}{*}{$\Delta(\frac{IWM\ stock}{F})$} &$0.17^{***}$ & $-0.34^{***}$\\
+ &(0.048) & (0.069) \\
+ \hline
+\multirow{2}{*}{$\Delta ln(\frac{PIM\ stock}{L})$} & $0.15^{**}$ & $-0.34^{***}$ \\
+ &(0.064) & (0.091)\\
+ \hline
+\multirow{2}{*}{$\Delta ln(\frac{IWM\ stock}{L})$} & $0.15^{**}$ & $-0.36^{***}$\\
+ &(0.067) & (0.093)\\
+ \hline
+\multirow{2}{*}{$\Delta ln(PIM\ stock)$} & $0.17^{**}$ & $-0.29^{**}$ \\
+ &(0.076) & (0.13)\\
+ \hline
+\multirow{2}{*}{$\Delta ln(IWM\ stock)$} & $0.18^{**}$ & $-0.31^{*}$\\
+ &(0.079) & (0.14)\\
+ \hline
+ \end{tabular}\\
+\end{table}
+
+# Panel Analysis
+
+Adachi et al.(2020) and Arai et al.(2021) indicates we can use the robot price indicator as an instrumental variable for the robot stock.
+While their data covers 1980's, my data only covers 1994 to 2018.  
+\medskip  
+\begin{center}
+Controlled with \it{Global Control} and \it{ICT Stock},  
+\end{center}
+
+|  Period  |   Weight  | Weak IV F-stat
+| :-: | :-: | :-:|
+| 1978-2018 | 1978-1980 | 35.85
+| 1994-2018 | 1991-1993 | 4.38
+| 1994-2018 | 1978-1980 | 0.64
+| 1980-1989 | 1978-1980 | 29.04
+| 1980-1989 | 1978-1980 | 26.29
+
+ - _Global Control_  is import value plus export value  
+ - _ICT stock_ is Information and Communication Technology stock in JIP database.  
+ 
+# Price as an IV
+
+Changing methods to making robot stocks and changing weights have not improved Weak IV F statics so far.  
+The value do not even exceed 6.  
+
+# 
